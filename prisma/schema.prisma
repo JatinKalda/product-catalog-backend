@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * Product model for the catalog
+ * 
+ * Indexing Strategy:
+ * 1. (updated_at DESC, id DESC) - Primary compound index for cursor pagination
+ *    Ensures efficient keyset pagination with newest products first
+ * 2. (category, updated_at DESC, id DESC) - Filtered pagination by category
+ *    Enables efficient category filtering while maintaining cursor pagination
+ * 3. (created_at DESC) - For analytics and time-based queries
+ * 4. (name) - Full-text search support (can be upgraded to GIN index for tsvector)
+ */
+model Product {
+  id        BigInt      @id @default(autoincrement())
+  name      String      @db.VarChar(255)
+  category  String      @db.VarChar(100)
+  price     Decimal     @db.Decimal(10, 2)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([updatedAt(sort: Desc), id(sort: Desc)], name: "idx_products_updated_id")
+  @@index([category, updatedAt(sort: Desc), id(sort: Desc)], name: "idx_products_category_updated_id")
+  @@index([createdAt(sort: Desc)], name: "idx_products_created_at")
+  @@index([name], name: "idx_products_name")
+  @@map("products")
+}
